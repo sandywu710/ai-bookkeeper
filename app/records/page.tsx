@@ -217,6 +217,7 @@ export default function RecordsPage() {
           </div>
         )}
       </div>
+      <BottomNav />
     </div>
   )
 }
