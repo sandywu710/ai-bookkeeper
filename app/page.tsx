@@ -3,13 +3,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
-import { CATEGORY_EMOJI, getUserId } from '@/lib/constants'
+import { CATEGORY_EMOJI, getAllCategoryEmoji, getUserId, getMonthlyBudget } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
 export default function HomePage() {
   const [monthTotal, setMonthTotal] = useState<number | null>(null)
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
+  const [budget, setBudget] = useState(30000)
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>(CATEGORY_EMOJI)
+
+  useEffect(() => {
+    setBudget(getMonthlyBudget())
+    setEmojiMap(getAllCategoryEmoji())
+  }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -34,12 +41,13 @@ export default function HomePage() {
     }
   }, [])
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  useEffect(() => { loadData() }, [loadData])
 
   const now = new Date()
   const monthName = `${now.getMonth() + 1}月`
+  const spent = monthTotal ?? 0
+  const percent = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0
+  const isOver = spent > budget
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
@@ -56,17 +64,27 @@ export default function HomePage() {
           {loading ? (
             <div className="mt-2 h-9 w-40 bg-[#FAF7F2] rounded animate-pulse" />
           ) : (
-            <p className="text-3xl font-bold text-[#2C2019] mt-1">
-              NT$ {monthTotal?.toLocaleString('zh-TW') ?? '0'}
+            <p className={`text-3xl font-bold mt-1 ${isOver ? 'text-[#E8736C]' : 'text-[#2C2019]'}`}>
+              NT${spent.toLocaleString('zh-TW')}
             </p>
           )}
-          <div className="mt-3 h-1 bg-[#FAF7F2] rounded-full overflow-hidden">
+          <div className="mt-3 h-1.5 bg-[#FAF7F2] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#4CAF7D] rounded-full transition-all duration-700"
-              style={{ width: monthTotal && monthTotal > 0 ? `${Math.min((monthTotal / 30000) * 100, 100)}%` : '0%' }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${percent}%`,
+                backgroundColor: isOver ? '#E8736C' : '#4CAF7D',
+              }}
             />
           </div>
-          <p className="text-xs text-[#8B7355] mt-1.5">月預算參考 NT$30,000</p>
+          <div className="flex items-center justify-between mt-1.5">
+            <p className={`text-xs font-medium ${isOver ? 'text-[#E8736C]' : 'text-[#8B7355]'}`}>
+              {loading ? '讀取中...' : `已花 NT$${spent.toLocaleString('zh-TW')} ／ 預算 NT$${budget.toLocaleString('zh-TW')}`}
+            </p>
+            {isOver && !loading && (
+              <span className="text-xs font-bold text-[#E8736C]">超支 {Math.round(percent - 100)}%</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -85,9 +103,7 @@ export default function HomePage() {
       <div className="px-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-[#2C2019]">最近記錄</h2>
-          <Link href="/records" className="text-sm text-[#4CAF7D] font-medium">
-            查看全部
-          </Link>
+          <Link href="/records" className="text-sm text-[#4CAF7D] font-medium">查看全部</Link>
         </div>
 
         {loading ? (
@@ -109,7 +125,7 @@ export default function HomePage() {
                 className="bg-white rounded-[16px] p-4 border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] flex items-center gap-3"
               >
                 <span className="text-2xl flex-shrink-0">
-                  {CATEGORY_EMOJI[expense.category] || '💸'}
+                  {emojiMap[expense.category] || '💸'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-[#2C2019] text-sm truncate">{expense.description}</p>
