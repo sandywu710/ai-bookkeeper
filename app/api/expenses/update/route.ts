@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { createApiClient } from '@/lib/supabase-api'
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = getSupabase()
-    const { id, amount, category, description, expense_date } = await req.json()
+    const supabase = createApiClient(req)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: '未登入' }, { status: 401 })
 
+    const { id, amount, category, description, expense_date } = await req.json()
     if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
 
     const { data, error } = await supabase

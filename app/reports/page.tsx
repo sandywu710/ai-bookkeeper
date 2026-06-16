@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import BottomNav from '@/components/BottomNav'
-import { CATEGORY_EMOJI, getUserId } from '@/lib/constants'
+import { CATEGORY_EMOJI } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
 // Dynamic import for recharts (avoids SSR issues)
@@ -43,8 +43,7 @@ export default function ReportsPage() {
     setInsightsFetched(false)
     setInsights([])
     try {
-      const userId = getUserId()
-      const res = await fetch(`/api/expenses?user_id=${userId}&limit=500`)
+      const res = await fetch('/api/expenses?limit=500')
       const { data } = await res.json()
       if (data) setExpenses(data)
     } finally {

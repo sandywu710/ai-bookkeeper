@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
-import { getAllCategories, getAllCategoryEmoji, getUserId } from '@/lib/constants'
+import { getAllCategories, getAllCategoryEmoji } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
@@ -19,8 +19,7 @@ export default function RecordsPage() {
   const loadExpenses = useCallback(async () => {
     setLoading(true)
     try {
-      const userId = getUserId()
-      const res = await fetch(`/api/expenses?user_id=${userId}&limit=500`)
+      const res = await fetch('/api/expenses?limit=500')
       const { data } = await res.json()
       if (data) setExpenses(data)
     } finally {

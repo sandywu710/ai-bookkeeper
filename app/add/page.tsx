@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FIXED_CATEGORIES, getAllCategories, getAllCategoryEmoji, getCustomCategories, getUserId } from '@/lib/constants'
+import { FIXED_CATEGORIES, getAllCategories, getAllCategoryEmoji, getCustomCategories } from '@/lib/constants'
 
 type ParsedExpense = {
   amount: number
@@ -67,7 +67,6 @@ export default function AddPage() {
     if (!finalAmount || finalAmount <= 0 || !parsed) return
     setIsSaving(true)
     try {
-      const userId = getUserId()
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +75,6 @@ export default function AddPage() {
           category: parsed.category,
           description: parsed.description,
           raw_input: input,
-          user_id: userId,
         }),
       })
       if (!res.ok) throw new Error('儲存失敗')

@@ -2,31 +2,31 @@
 
 import BottomNav from '@/components/BottomNav'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
-  getUserId,
   getMonthlyBudget, saveMonthlyBudget,
   getCustomCategories, saveCustomCategories,
   CATEGORY_EMOJI, FIXED_CATEGORIES,
 } from '@/lib/constants'
 import type { CustomCategory } from '@/lib/constants'
+import { useAuth } from '@/components/AuthProvider'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 const COMMON_EMOJIS = ['🎯','🎁','🏋️','🐶','🌸','🍺','🎵','🚀','💻','📷','🧘','✈️','🎀','🌊','☕','🍕','🏠','💼','🛒','🎮']
 
 export default function SettingsPage() {
-  const [userId, setUserId] = useState('')
+  const { user } = useAuth()
+  const router = useRouter()
 
-  // Budget
   const [budgetInput, setBudgetInput] = useState('30000')
   const [budgetSaved, setBudgetSaved] = useState(false)
-
-  // Custom categories
   const [customCats, setCustomCats] = useState<CustomCategory[]>([])
   const [showAddCat, setShowAddCat] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatEmoji, setNewCatEmoji] = useState('🎯')
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
-    setUserId(getUserId())
     setBudgetInput(String(getMonthlyBudget()))
     setCustomCats(getCustomCategories())
   }, [])
@@ -59,6 +59,14 @@ export default function SettingsPage() {
     saveCustomCategories(next)
   }
 
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    const supabase = getSupabaseBrowser()
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
+
   return (
     <div className="flex flex-col min-h-screen pb-24">
       <div className="px-5 pt-12 pb-4">
@@ -66,6 +74,34 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-5 space-y-4">
+
+        {/* ── 帳號資訊 ── */}
+        {user && (
+          <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
+            <h2 className="text-sm font-semibold text-[#8B7355] mb-3">登入帳號</h2>
+            <div className="flex items-center gap-3">
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="頭貼"
+                  className="w-12 h-12 rounded-full object-cover border border-[#E8E0D5]"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-[#4CAF7D]/20 flex items-center justify-center">
+                  <span className="text-xl text-[#4CAF7D]">
+                    {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                {user.user_metadata?.full_name && (
+                  <p className="text-sm font-semibold text-[#2C2019] truncate">{user.user_metadata.full_name}</p>
+                )}
+                <p className="text-xs text-[#8B7355] truncate">{user.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── 月預算 ── */}
         <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
@@ -103,7 +139,6 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Add form */}
           {showAddCat && (
             <div className="bg-[#FAF7F2] rounded-[12px] p-4 mb-3 border border-[#E8E0D5]">
               <p className="text-xs text-[#8B7355] font-medium mb-2">分類名稱</p>
@@ -142,7 +177,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Fixed categories */}
           <p className="text-xs text-[#8B7355] mb-2">固定分類</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {(FIXED_CATEGORIES as unknown as string[]).map(cat => (
@@ -152,7 +186,6 @@ export default function SettingsPage() {
             ))}
           </div>
 
-          {/* Custom categories */}
           {customCats.length > 0 && (
             <>
               <p className="text-xs text-[#8B7355] mb-2">自訂分類</p>
@@ -184,15 +217,15 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-[#8B7355]">版本</span>
-              <span className="text-[#2C2019]">2.0.0 P1</span>
+              <span className="text-[#2C2019]">2.0.0 P2</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[#8B7355]">AI 模型</span>
               <span className="text-[#2C2019]">Gemini 2.5 Flash</span>
             </div>
-            <div className="flex flex-col gap-0.5 text-sm">
-              <span className="text-[#8B7355]">裝置 ID</span>
-              <span className="text-[#2C2019] text-xs font-mono break-all">{userId.slice(0, 16)}...</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-[#8B7355]">資料儲存</span>
+              <span className="text-[#2C2019]">Supabase 雲端</span>
             </div>
           </div>
         </div>
@@ -201,7 +234,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
           <h2 className="text-sm font-semibold text-[#8B7355] mb-1">資料說明</h2>
           <p className="text-xs text-[#8B7355] leading-relaxed">
-            記帳資料存於 Supabase 雲端，預算設定與自訂分類存於本機。換裝置後雲端記錄可見，設定需重新輸入。
+            記帳資料安全儲存於 Supabase 雲端並綁定您的 Google 帳號。預算設定與自訂分類存於本機，換裝置後需重新設定。
           </p>
         </div>
 
@@ -215,6 +248,15 @@ export default function SettingsPage() {
           className="w-full bg-white rounded-[16px] border border-[#E8E0D5] p-4 text-sm text-[#E8736C] font-medium text-left shadow-[0_2px_12px_rgba(44,32,25,0.06)]"
         >
           清除本機暫存資料
+        </button>
+
+        {/* ── 登出 ── */}
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full py-4 text-sm font-medium text-[#E8736C] disabled:opacity-50"
+        >
+          {loggingOut ? '登出中...' : '登出'}
         </button>
       </div>
 

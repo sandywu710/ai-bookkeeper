@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { CATEGORY_EMOJI, getUserId } from '@/lib/constants'
+import { CATEGORY_EMOJI } from '@/lib/constants'
 
 function SuccessContent() {
   const params = useSearchParams()
@@ -22,8 +22,7 @@ function SuccessContent() {
   useEffect(() => {
     const fetchTodayTotal = async () => {
       try {
-        const userId = getUserId()
-        const res = await fetch(`/api/expenses?user_id=${userId}&limit=100`)
+        const res = await fetch('/api/expenses?limit=100')
         const { data } = await res.json()
         if (!data) return
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
-import { CATEGORY_EMOJI, getAllCategoryEmoji, getUserId, getMonthlyBudget } from '@/lib/constants'
+import { CATEGORY_EMOJI, getAllCategoryEmoji, getMonthlyBudget } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
 export default function HomePage() {
@@ -21,8 +21,7 @@ export default function HomePage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const userId = getUserId()
-      const res = await fetch(`/api/expenses?user_id=${userId}&limit=50`)
+      const res = await fetch('/api/expenses?limit=50')
       const { data } = await res.json()
       if (!data) return
 

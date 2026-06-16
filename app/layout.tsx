@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'AI記帳助手',
@@ -23,11 +24,13 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body>
-        <div className="min-h-screen bg-[#FAF7F2]">
-          <div className="mx-auto max-w-[430px] min-h-screen relative">
-            {children}
+        <AuthProvider>
+          <div className="min-h-screen bg-[#FAF7F2]">
+            <div className="mx-auto max-w-[430px] min-h-screen relative">
+              {children}
+            </div>
           </div>
-        </div>
+        </AuthProvider>
       </body>
     </html>
   )
