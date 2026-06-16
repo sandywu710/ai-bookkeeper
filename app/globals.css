@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FAF7F2;
+  --text-main: #2C2019;
+  --text-sub: #8B7355;
+  --primary: #4CAF7D;
+  --accent: #F5A623;
+  --danger: #E8736C;
+  --card: #FFFFFF;
+  --border: #E8E0D5;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Checkmark animation */
+@keyframes checkmark-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes circle-scale {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.check-circle {
+  animation: circle-scale 0.5s ease-out forwards;
+}
+
+.check-mark {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: checkmark-draw 0.4s ease-out 0.3s forwards;
+}
+
+/* Slide up animation */
+@keyframes slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Swipe delete */
+.expense-item {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
