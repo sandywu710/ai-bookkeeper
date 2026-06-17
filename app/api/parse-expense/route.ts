@@ -3,9 +3,42 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createApiClient } from '@/lib/supabase-api'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+const model = genAI.getGenerativeModel({
+  model: 'gemini-2.5-flash',
+  generationConfig: { responseMimeType: 'application/json' } as Record<string, unknown>,
+})
 
 const FIXED_CATEGORIES = ['餐飲', '交通', '購物', '娛樂', '醫療', '住居', '教育', '感情支出', '其他']
+
+// Strip markdown fences, extract first complete JSON object
+function extractJson(raw: string): string | null {
+  const stripped = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim()
+  const start = stripped.indexOf('{')
+  const end = stripped.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) return null
+  return stripped.slice(start, end + 1)
+}
+
+async function callWithRetry(prompt: string, maxAttempts = 2): Promise<{ jsonStr: string; raw: string }> {
+  let lastRaw = ''
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await model.generateContent(prompt)
+      const raw = result.response.text().trim()
+      lastRaw = raw
+      const jsonStr = extractJson(raw)
+      if (jsonStr) return { jsonStr, raw }
+      console.log(`[parse-expense] attempt ${attempt}/${maxAttempts} — no JSON found, raw: "${raw.slice(0, 150)}"`)
+    } catch (err) {
+      console.log(`[parse-expense] attempt ${attempt}/${maxAttempts} — Gemini error:`, err)
+      if (attempt === maxAttempts) throw err
+    }
+  }
+  throw new Error(`JSON 解析失敗，Gemini 原始回傳：${lastRaw.slice(0, 200)}`)
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,45 +63,53 @@ export async function POST(req: NextRequest) {
 
     const allCategories = [...FIXED_CATEGORIES, ...customCatNames]
 
-    const prompt = `請分析這筆支出：「${input}」
-回傳 JSON 格式，包含：
-- amount: 金額數字（純數字，不含符號）
-- category: 從以下選一個：${allCategories.join('、')}
-- description: 簡短描述（10字以內）
-- confidence: 解析信心度（0到1之間）
+    const prompt = `你是記帳助理。分析以下支出描述，只回傳 JSON，不要任何其他文字。
+
+支出描述：「${input}」
+
+回傳格式（嚴格遵守，只有 JSON）：
+{"amount":<金額數字>,"category":"<分類>","description":"<10字以內>","confidence":<0到1>}
+
+可用分類（只能選這些）：
+${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
 分類判斷規則：
-- 感情支出：約會、禮物、花束、情人節、紀念日、送花、求婚、電影（兩人）等情侶相關
-- 餐飲：吃飯、飲料、咖啡、便當、外送等
-- 交通：計程車、uber、捷運、公車、停車、油費等
-- 購物：衣服、3C、日用品、超市、網購等
-- 娛樂：電影、KTV、遊戲、展覽等
-- 醫療：看診、藥局、健檢等
-- 住居：房租、水電、修繕等
-- 教育：課程、書籍、補習等
+- 感情支出：約會、禮物、花束、情人節、紀念日、送花、求婚等情侶相關
+- 餐飲：吃飯、飲料、咖啡、便當、外送
+- 交通：計程車、Uber、捷運、公車、停車、油費
+- 購物：衣服、3C、日用品、超市、網購
+- 娛樂：電影、KTV、遊戲、展覽
+- 醫療：看診、藥局、健檢
+- 住居：房租、水電、修繕
+- 教育：課程、書籍、補習
+- 其他：無法歸類時使用`
 
-只回傳 JSON，不要其他文字。範例：{"amount":85,"category":"餐飲","description":"午餐便當","confidence":0.95}`
+    const { jsonStr, raw } = await callWithRetry(prompt)
 
-    const result = await model.generateContent(prompt)
-    const text = result.response.text().trim()
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('AI 無法解析格式')
-
-    const parsed = JSON.parse(jsonMatch[0])
-
-    if (!parsed.amount || !parsed.category || !allCategories.includes(parsed.category)) {
-      throw new Error('解析結果不完整')
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch (e) {
+      console.error('[parse-expense] JSON.parse failed, raw:', raw.slice(0, 300))
+      throw new Error('JSON 格式錯誤')
     }
 
+    const amount = Number(parsed.amount)
+    if (!amount || amount <= 0) throw new Error('金額無效')
+
+    // If category not in list, fall back to '其他' instead of throwing
+    const category = typeof parsed.category === 'string' && allCategories.includes(parsed.category)
+      ? parsed.category
+      : '其他'
+
     return NextResponse.json({
-      amount: Number(parsed.amount),
-      category: parsed.category,
-      description: parsed.description || input,
-      confidence: parsed.confidence || 0.8,
+      amount,
+      category,
+      description: typeof parsed.description === 'string' ? parsed.description : input,
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.8,
     })
   } catch (error) {
-    console.error('Parse error:', error)
+    console.error('[parse-expense] Final error:', error)
     return NextResponse.json({ error: 'AI 解析失敗，請手動選擇分類' }, { status: 500 })
   }
 }

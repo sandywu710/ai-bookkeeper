@@ -31,6 +31,7 @@ function AddPageContent() {
   const [manualAmount, setManualAmount] = useState('')
   const [expenseDate, setExpenseDate] = useState<string>(dateParam || today)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   console.log('[AddPage] expenseDate state set to:', expenseDate)
@@ -59,18 +60,24 @@ function AddPageContent() {
     if (!text.trim() || text.trim().length < 2) {
       setParsed(null); setParseError(''); return
     }
+    // Cancel any in-flight request before starting a new one
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
     setIsParsing(true); setParseError('')
     try {
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: text }),
+        signal: abortRef.current.signal,
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setParsed(data)
       setManualAmount(String(data.amount))
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       setParseError(err instanceof Error ? err.message : 'AI 解析失敗')
       setParsed(null)
     } finally {
