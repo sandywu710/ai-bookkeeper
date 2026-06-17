@@ -188,6 +188,13 @@ export default function RecordsPage() {
                 onDeleted={loadExpenses}
               />
             ))}
+            <Link
+              href={`/add?date=${selectedDate}`}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-[14px] border border-[#4CAF7D] text-sm font-medium text-[#4CAF7D] bg-transparent active:bg-[#4CAF7D]/5 transition-colors mt-1"
+            >
+              <span className="text-base leading-none">＋</span>
+              在這天新增記帳
+            </Link>
           </div>
         )}
       </div>

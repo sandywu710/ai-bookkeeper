@@ -260,45 +260,6 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* ── 關於 ── */}
-        <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
-          <h2 className="text-sm font-semibold text-[#8B7355] mb-3">關於 AI 記帳助手</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8B7355]">版本</span>
-              <span className="text-[#2C2019]">2.0.0 P2</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8B7355]">AI 模型</span>
-              <span className="text-[#2C2019]">Gemini 2.5 Flash</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8B7355]">資料儲存</span>
-              <span className="text-[#2C2019]">Supabase 雲端</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── 資料說明 ── */}
-        <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
-          <h2 className="text-sm font-semibold text-[#8B7355] mb-1">資料說明</h2>
-          <p className="text-xs text-[#8B7355] leading-relaxed">
-            記帳資料與自訂分類安全儲存於 Supabase 雲端並綁定您的 Google 帳號。預算設定存於本機，換裝置後需重新設定。
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            if (confirm('確定要清除所有本機資料嗎？（雲端記帳不受影響）')) {
-              localStorage.clear()
-              window.location.reload()
-            }
-          }}
-          className="w-full bg-white rounded-[16px] border border-[#E8E0D5] p-4 text-sm text-[#E8736C] font-medium text-left shadow-[0_2px_12px_rgba(44,32,25,0.06)]"
-        >
-          清除本機暫存資料
-        </button>
-
         {/* ── 登出 ── */}
         <button
           onClick={handleLogout}
