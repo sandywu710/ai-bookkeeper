@@ -159,7 +159,7 @@ export default function RecordsPage() {
           <div className="bg-white rounded-[16px] border border-[#E8E0D5] p-6 text-center">
             <p className="text-2xl mb-1">📋</p>
             <p className="text-sm text-[#8B7355]">這天還沒有記帳</p>
-            <Link href="/add" className="mt-3 inline-block text-sm text-[#4CAF7D] font-medium">+ 新增記帳</Link>
+            <Link href={`/add?date=${selectedDate}`} className="mt-3 inline-block text-sm text-[#4CAF7D] font-medium">+ 新增記帳</Link>
           </div>
         ) : (
           <div className="space-y-2">

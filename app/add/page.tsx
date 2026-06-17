@@ -20,7 +20,11 @@ export default function AddPage() {
   const [parseError, setParseError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [manualAmount, setManualAmount] = useState('')
-  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [expenseDate, setExpenseDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return new Date().toISOString().split('T')[0]
+    const params = new URLSearchParams(window.location.search)
+    return params.get('date') || new Date().toISOString().split('T')[0]
+  })
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
