@@ -3,30 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import BottomNav from '@/components/BottomNav'
-import { CATEGORY_EMOJI } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
-// Dynamic import for recharts (avoids SSR issues)
-const PieChart = dynamic(() => import('recharts').then(m => m.PieChart), { ssr: false })
-const Pie = dynamic(() => import('recharts').then(m => m.Pie), { ssr: false })
-const Cell = dynamic(() => import('recharts').then(m => m.Cell), { ssr: false })
-const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false })
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false })
-const BarChart = dynamic(() => import('recharts').then(m => m.BarChart), { ssr: false })
-const Bar = dynamic(() => import('recharts').then(m => m.Bar), { ssr: false })
-const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false })
-const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false })
-
-const CATEGORY_COLORS: Record<string, string> = {
-  餐飲: '#FF8C69',
-  交通: '#4A90D9',
-  購物: '#F5A623',
-  娛樂: '#9B59B6',
-  醫療: '#E8736C',
-  住居: '#4CAF7D',
-  教育: '#3AAFA9',
-  其他: '#95A5A6',
-}
+// Import the entire chart section as one unit so recharts component types stay intact
+const ReportCharts = dynamic(() => import('./ReportCharts'), { ssr: false })
 
 export default function ReportsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -98,6 +78,13 @@ export default function ReportsPage() {
     if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1)
   }
 
+  // ---- category click (toggle) ----
+  const handleCatClick = useCallback((name: string) => {
+    setActiveCat(prev => prev === name ? null : name)
+  }, [])
+
+  const activeCatInfo = activeCat ? catMap[activeCat] ?? null : null
+
   // ---- AI insights ----
   const fetchInsights = useCallback(async () => {
     if (insightsFetched || insightsLoading) return
@@ -123,8 +110,6 @@ export default function ReportsPage() {
       setInsightsLoading(false)
     }
   }, [monthExpenses, insightsFetched, insightsLoading])
-
-  const activeCatInfo = activeCat ? catMap[activeCat] : null
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
@@ -189,113 +174,14 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
-          {/* ── 圓餅圖 ── */}
-          <div className="px-5 mb-5">
-            <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-4">
-              <h2 className="text-sm font-semibold text-[#2C2019] mb-3">分類占比</h2>
-              <div className="flex items-center gap-2">
-                {/* Pie */}
-                <div className="w-40 h-40 flex-shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={catData}
-                        dataKey="total"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={36}
-                        outerRadius={64}
-                        paddingAngle={2}
-                        onClick={(d) => setActiveCat(prev => prev === (d.name as string) ? null : (d.name as string))}
-                      >
-                        {catData.map((entry) => (
-                          <Cell
-                            key={entry.name}
-                            fill={CATEGORY_COLORS[entry.name] || '#95A5A6'}
-                            opacity={activeCat && activeCat !== entry.name ? 0.4 : 1}
-                            stroke={activeCat === entry.name ? '#2C2019' : 'transparent'}
-                            strokeWidth={activeCat === entry.name ? 2 : 0}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value) => [`NT$${Number(value).toLocaleString('zh-TW')}`, '']}
-                        contentStyle={{ borderRadius: 8, border: '1px solid #E8E0D5', fontSize: 12 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Legend */}
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  {catData.map(cat => (
-                    <button
-                      key={cat.name}
-                      onClick={() => setActiveCat(prev => prev === cat.name ? null : cat.name)}
-                      className={`w-full flex items-center gap-2 px-2 py-1 rounded-[6px] transition-colors ${
-                        activeCat === cat.name ? 'bg-[#FAF7F2]' : ''
-                      }`}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: CATEGORY_COLORS[cat.name] || '#95A5A6' }}
-                      />
-                      <span className="text-xs text-[#2C2019] flex-1 text-left truncate">
-                        {CATEGORY_EMOJI[cat.name]} {cat.name}
-                      </span>
-                      <span className="text-xs font-medium text-[#8B7355] flex-shrink-0">{cat.percent}%</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Active category detail */}
-              {activeCat && activeCatInfo && (
-                <div className="mt-3 pt-3 border-t border-[#E8E0D5] flex justify-between items-center slide-up">
-                  <span className="text-sm font-medium text-[#2C2019]">
-                    {CATEGORY_EMOJI[activeCat]} {activeCat}
-                  </span>
-                  <div className="text-right">
-                    <span className="text-base font-bold text-[#2C2019]">
-                      NT${activeCatInfo.total.toLocaleString('zh-TW')}
-                    </span>
-                    <span className="text-xs text-[#8B7355] ml-2">{activeCatInfo.count} 筆</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── 長條圖 ── */}
-          <div className="px-5 mb-5">
-            <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-4">
-              <h2 className="text-sm font-semibold text-[#2C2019] mb-3">每天花費</h2>
-              <div style={{ height: 160 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }} barSize={6}>
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 10, fill: '#8B7355' }}
-                      tickLine={false}
-                      axisLine={false}
-                      interval={4}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: '#8B7355' }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                    />
-                    <Tooltip
-                      cursor={{ fill: '#FAF7F2' }}
-                      formatter={(value) => [`NT$${Number(value).toLocaleString('zh-TW')}`, '花費']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid #E8E0D5', fontSize: 12 }}
-                    />
-                    <Bar dataKey="total" fill="#4CAF7D" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+          {/* Charts: pie + bar — rendered as a single unit to preserve recharts types */}
+          <ReportCharts
+            catData={catData}
+            dailyData={dailyData}
+            activeCat={activeCat}
+            activeCatInfo={activeCatInfo}
+            onCatClick={handleCatClick}
+          />
 
           {/* ── AI 洞察 ── */}
           <div className="px-5 mb-4">
