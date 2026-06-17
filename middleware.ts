@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Auth callback and API routes pass through
-  if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
     return supabaseResponse
   }
 

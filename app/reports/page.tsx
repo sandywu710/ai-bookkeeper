@@ -55,8 +55,10 @@ export default function ReportsPage() {
 
   // ---- month filter ----
   const monthExpenses = expenses.filter(e => {
-    const d = new Date(e.created_at || '')
-    return d.getFullYear() === year && d.getMonth() === month
+    const ds = e.expense_date || toLocalDate(e.created_at || '')
+    if (!ds) return false
+    const [y, m] = ds.split('-').map(Number)
+    return y === year && m === month + 1
   })
   const monthTotal = monthExpenses.reduce((s, e) => s + Number(e.amount), 0)
 
@@ -80,7 +82,7 @@ export default function ReportsPage() {
     const day = i + 1
     const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const total = monthExpenses
-      .filter(e => toLocalDate(e.created_at || '') === dayStr)
+      .filter(e => (e.expense_date || toLocalDate(e.created_at || '')) === dayStr)
       .reduce((s, e) => s + Number(e.amount), 0)
     return { day: String(day), total }
   })

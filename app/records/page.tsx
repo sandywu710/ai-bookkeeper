@@ -8,6 +8,13 @@ import type { Expense } from '@/lib/supabase'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
+function getExpenseDate(e: { expense_date?: string; created_at?: string }): string {
+  if (e.expense_date) return e.expense_date
+  if (!e.created_at) return ''
+  const d = new Date(e.created_at)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function RecordsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,22 +37,17 @@ export default function RecordsPage() {
   useEffect(() => { loadExpenses() }, [loadExpenses])
 
   const monthExpenses = expenses.filter(e => {
-    const d = new Date(e.created_at || '')
-    return d.getFullYear() === calendarYear && d.getMonth() === calendarMonth
+    const ds = getExpenseDate(e)
+    if (!ds) return false
+    const [y, m] = ds.split('-').map(Number)
+    return y === calendarYear && m === calendarMonth + 1
   })
   const monthTotal = monthExpenses.reduce((s, e) => s + Number(e.amount), 0)
   const monthCount = monthExpenses.length
 
-  const datesWithExpense = new Set(
-    expenses
-      .filter(e => {
-        const d = new Date(e.created_at || '')
-        return d.getFullYear() === calendarYear && d.getMonth() === calendarMonth
-      })
-      .map(e => toLocalDate(e.created_at || ''))
-  )
+  const datesWithExpense = new Set(monthExpenses.map(e => getExpenseDate(e)))
 
-  const dayExpenses = expenses.filter(e => toLocalDate(e.created_at || '') === selectedDate)
+  const dayExpenses = expenses.filter(e => getExpenseDate(e) === selectedDate)
   const dayTotal = dayExpenses.reduce((s, e) => s + Number(e.amount), 0)
 
   // Calendar grid

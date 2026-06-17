@@ -26,7 +26,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     if (error) {
@@ -80,8 +80,12 @@ export default function LoginPage() {
             )}
           </button>
 
+          <p className="mt-3 text-sm text-[#8B7355] text-center">
+            請使用 Safari 或 Chrome 開啟，避免登入失敗
+          </p>
+
           {error && (
-            <p className="mt-3 text-xs text-[#E8736C] text-center">{error}</p>
+            <p className="mt-2 text-xs text-[#E8736C] text-center">{error}</p>
           )}
         </div>
 

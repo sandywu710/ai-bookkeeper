@@ -27,8 +27,10 @@ export default function HomePage() {
 
       const now = new Date()
       const thisMonth = data.filter((e: Expense) => {
-        const d = new Date(e.created_at || '')
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        const ds: string = e.expense_date || (e.created_at ? e.created_at.split('T')[0] : '')
+        if (!ds) return false
+        const [y, m] = ds.split('-').map(Number)
+        return y === now.getFullYear() && m === now.getMonth() + 1
       })
       const total = thisMonth.reduce((sum: number, e: Expense) => sum + Number(e.amount), 0)
       setMonthTotal(total)

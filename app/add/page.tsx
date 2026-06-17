@@ -20,6 +20,7 @@ export default function AddPage() {
   const [parseError, setParseError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [manualAmount, setManualAmount] = useState('')
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -75,6 +76,7 @@ export default function AddPage() {
           category: parsed.category,
           description: parsed.description,
           raw_input: input,
+          expense_date: expenseDate,
         }),
       })
       if (!res.ok) throw new Error('儲存失敗')
@@ -141,7 +143,7 @@ export default function AddPage() {
               />
             </div>
             <label className="text-xs text-[#8B7355] mb-1.5 block">選擇分類</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-3">
               {allCategories.map(cat => (
                 <button
                   key={cat}
@@ -157,6 +159,16 @@ export default function AddPage() {
                   <span>{emojiMap[cat] || '💸'}</span>{cat}
                 </button>
               ))}
+            </div>
+            <div>
+              <label className="text-xs text-[#8B7355] mb-1 block">日期</label>
+              <input
+                type="date"
+                value={expenseDate}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                className="w-full bg-white border border-[#E8E0D5] rounded-[8px] px-3 py-2 text-sm text-[#2C2019] outline-none"
+              />
             </div>
           </div>
         )}
@@ -205,6 +217,17 @@ export default function AddPage() {
                 type="text"
                 value={parsed.description}
                 onChange={(e) => setParsed({ ...parsed, description: e.target.value })}
+                className="w-full bg-[#FAF7F2] border border-[#E8E0D5] rounded-[8px] px-3 py-2 text-sm text-[#2C2019] outline-none focus:border-[#4CAF7D] transition-colors"
+              />
+            </div>
+            {/* Date */}
+            <div>
+              <label className="text-xs text-[#8B7355] mb-1 block">日期</label>
+              <input
+                type="date"
+                value={expenseDate}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setExpenseDate(e.target.value)}
                 className="w-full bg-[#FAF7F2] border border-[#E8E0D5] rounded-[8px] px-3 py-2 text-sm text-[#2C2019] outline-none focus:border-[#4CAF7D] transition-colors"
               />
             </div>
