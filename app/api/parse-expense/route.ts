@@ -3,14 +3,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createApiClient } from '@/lib/supabase-api'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
-  generationConfig: { responseMimeType: 'application/json' } as Record<string, unknown>,
-})
+
+// Fallback model chain per CLAUDE.md
+const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite']
 
 const FIXED_CATEGORIES = ['餐飲', '交通', '購物', '娛樂', '醫療', '住居', '教育', '感情支出', '其他']
 
-// Strip markdown fences, extract first complete JSON object
 function extractJson(raw: string): string | null {
   const stripped = raw
     .replace(/```json\s*/gi, '')
@@ -22,28 +20,40 @@ function extractJson(raw: string): string | null {
   return stripped.slice(start, end + 1)
 }
 
-async function callWithRetry(prompt: string, maxAttempts = 2): Promise<{ jsonStr: string; raw: string }> {
-  let lastRaw = ''
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+async function callGemini(prompt: string): Promise<{ jsonStr: string; raw: string; modelUsed: string }> {
+  let lastError: unknown = null
+
+  for (const modelName of MODEL_CHAIN) {
+    console.log(`[parse-expense] trying model: ${modelName}`)
     try {
-      console.log(`[parse-expense] === ATTEMPT ${attempt}/${maxAttempts} ===`)
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { responseMimeType: 'application/json' } as Record<string, unknown>,
+      })
       const result = await model.generateContent(prompt)
       const raw = result.response.text().trim()
-      lastRaw = raw
-      console.log(`[parse-expense] GEMINI RAW RESPONSE (attempt ${attempt}):`)
-      console.log(JSON.stringify(raw)) // JSON.stringify shows escape chars clearly
+      console.log(`[parse-expense] ${modelName} RAW:`, JSON.stringify(raw))
+
       const jsonStr = extractJson(raw)
       if (jsonStr) {
-        console.log(`[parse-expense] EXTRACTED JSON: ${jsonStr}`)
-        return { jsonStr, raw }
+        console.log(`[parse-expense] ${modelName} extracted JSON:`, jsonStr)
+        return { jsonStr, raw, modelUsed: modelName }
       }
-      console.log(`[parse-expense] extractJson returned null — no JSON found in response`)
+      console.log(`[parse-expense] ${modelName} — extractJson returned null, trying next model`)
+      lastError = new Error(`No JSON in response: ${raw.slice(0, 100)}`)
     } catch (err) {
-      console.log(`[parse-expense] Gemini API error on attempt ${attempt}:`, err)
-      if (attempt === maxAttempts) throw err
+      const msg = err instanceof Error ? err.message : String(err)
+      console.log(`[parse-expense] ${modelName} ERROR: ${msg}`)
+      // 429 quota / 503 unavailable → try next model
+      // Other errors (bad request, etc.) → stop
+      const isQuotaOrUnavailable = msg.includes('429') || msg.includes('503') || msg.includes('quota') || msg.includes('spending cap')
+      lastError = err
+      if (!isQuotaOrUnavailable) throw err
+      // continue to next model
     }
   }
-  throw new Error(`JSON 解析失敗，Gemini 原始回傳：${lastRaw.slice(0, 200)}`)
+
+  throw lastError ?? new Error('All models failed')
 }
 
 export async function POST(req: NextRequest) {
@@ -91,29 +101,24 @@ ${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 - 教育：課程、書籍、補習
 - 其他：無法歸類時使用`
 
-    console.log(`[parse-expense] PROMPT SENT TO GEMINI:`)
-    console.log(prompt)
-
-    const { jsonStr, raw } = await callWithRetry(prompt)
+    const { jsonStr, raw, modelUsed } = await callGemini(prompt)
+    console.log(`[parse-expense] success with model: ${modelUsed}`)
 
     let parsed: Record<string, unknown>
     try {
       parsed = JSON.parse(jsonStr)
       console.log(`[parse-expense] JSON.parse SUCCESS:`, parsed)
     } catch (e) {
-      console.error(`[parse-expense] JSON.parse FAILED. jsonStr was: "${jsonStr}"`)
-      console.error(`[parse-expense] JSON.parse error:`, e)
+      console.error(`[parse-expense] JSON.parse FAILED. jsonStr: "${jsonStr}"`)
       throw new Error('JSON 格式錯誤')
     }
 
     const amount = Number(parsed.amount)
-    console.log(`[parse-expense] amount parsed: ${amount}, raw value: ${parsed.amount}`)
     if (!amount || amount <= 0) throw new Error('金額無效')
 
     const category = typeof parsed.category === 'string' && allCategories.includes(parsed.category)
       ? parsed.category
       : '其他'
-    console.log(`[parse-expense] category: "${parsed.category}" → final: "${category}"`)
 
     return NextResponse.json({
       amount,
@@ -122,7 +127,12 @@ ${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.8,
     })
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const isQuota = msg.includes('429') || msg.includes('spending cap') || msg.includes('quota')
     console.error('[parse-expense] FINAL ERROR:', error)
-    return NextResponse.json({ error: 'AI 解析失敗，請手動選擇分類' }, { status: 500 })
+    return NextResponse.json(
+      { error: isQuota ? 'AI 額度用盡，請稍後再試或聯絡管理員' : 'AI 解析失敗，請手動選擇分類' },
+      { status: 500 }
+    )
   }
 }
