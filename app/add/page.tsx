@@ -32,6 +32,7 @@ function AddPageContent() {
   const [expenseDate, setExpenseDate] = useState<string>(dateParam || today)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const parseVersionRef = useRef(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   console.log('[AddPage] expenseDate state set to:', expenseDate)
@@ -60,9 +61,13 @@ function AddPageContent() {
     if (!text.trim() || text.trim().length < 2) {
       setParsed(null); setParseError(''); return
     }
-    // Cancel any in-flight request before starting a new one
+
+    // Abort the previous in-flight request
     abortRef.current?.abort()
     abortRef.current = new AbortController()
+
+    // Version stamp: only the response matching the latest call should update state
+    const myVersion = ++parseVersionRef.current
 
     setIsParsing(true); setParseError('')
     try {
@@ -74,20 +79,24 @@ function AddPageContent() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      if (myVersion !== parseVersionRef.current) return // stale response from an older call
       setParsed(data)
       setManualAmount(String(data.amount))
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return
+      if (myVersion !== parseVersionRef.current) return // stale error from an older call
       setParseError(err instanceof Error ? err.message : 'AI 解析失敗')
       setParsed(null)
     } finally {
-      setIsParsing(false)
+      // Only the latest request should clear the loading state
+      if (myVersion === parseVersionRef.current) setIsParsing(false)
     }
   }, [])
 
+  // 800ms debounce — gives the user more time to finish typing before sending a request
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => parseExpense(input), 500)
+    debounceRef.current = setTimeout(() => parseExpense(input), 800)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [input, parseExpense])
 

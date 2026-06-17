@@ -20,8 +20,18 @@ function extractJson(raw: string): string | null {
   return stripped.slice(start, end + 1)
 }
 
+// Error type codes passed back to the caller
+type GeminiErrorType = 'MONTHLY_QUOTA' | 'RATE_LIMIT' | 'OTHER'
+
+function classifyError(msg: string): GeminiErrorType {
+  if (msg.includes('spending cap') || msg.includes('monthly spending')) return 'MONTHLY_QUOTA'
+  if (msg.includes('429') || msg.includes('rate') || msg.includes('Too Many')) return 'RATE_LIMIT'
+  return 'OTHER'
+}
+
 async function callGemini(prompt: string): Promise<{ jsonStr: string; raw: string; modelUsed: string }> {
   let lastError: unknown = null
+  let lastErrorType: GeminiErrorType = 'OTHER'
 
   for (const modelName of MODEL_CHAIN) {
     console.log(`[parse-expense] trying model: ${modelName}`)
@@ -41,19 +51,23 @@ async function callGemini(prompt: string): Promise<{ jsonStr: string; raw: strin
       }
       console.log(`[parse-expense] ${modelName} — extractJson returned null, trying next model`)
       lastError = new Error(`No JSON in response: ${raw.slice(0, 100)}`)
+      lastErrorType = 'OTHER'
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.log(`[parse-expense] ${modelName} ERROR: ${msg}`)
-      // 429 quota / 503 unavailable → try next model
-      // Other errors (bad request, etc.) → stop
-      const isQuotaOrUnavailable = msg.includes('429') || msg.includes('503') || msg.includes('quota') || msg.includes('spending cap')
+      const errType = classifyError(msg)
+      console.log(`[parse-expense] ${modelName} ERROR [${errType}]: ${msg.slice(0, 120)}`)
       lastError = err
-      if (!isQuotaOrUnavailable) throw err
-      // continue to next model
+      lastErrorType = errType
+      // Only retry on rate-limit / quota / unavailable — hard errors stop immediately
+      const isRetryable = errType === 'MONTHLY_QUOTA' || errType === 'RATE_LIMIT' || msg.includes('503')
+      if (!isRetryable) throw err
     }
   }
 
-  throw lastError ?? new Error('All models failed')
+  // Attach error type so the POST handler can show the right message
+  const finalErr = new Error(lastErrorType)
+  ;(finalErr as Error & { originalError: unknown }).originalError = lastError
+  throw finalErr
 }
 
 export async function POST(req: NextRequest) {
@@ -128,11 +142,17 @@ ${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    const isQuota = msg.includes('429') || msg.includes('spending cap') || msg.includes('quota')
-    console.error('[parse-expense] FINAL ERROR:', error)
-    return NextResponse.json(
-      { error: isQuota ? 'AI 額度用盡，請稍後再試或聯絡管理員' : 'AI 解析失敗，請手動選擇分類' },
-      { status: 500 }
-    )
+    console.error(`[parse-expense] FINAL ERROR [${msg}]:`, error)
+
+    let userMessage: string
+    if (msg === 'MONTHLY_QUOTA') {
+      userMessage = 'AI 額度用盡，請稍後再試或聯絡管理員'
+    } else if (msg === 'RATE_LIMIT') {
+      userMessage = '請求太頻繁，請稍等幾秒再試'
+    } else {
+      userMessage = 'AI 解析失敗，請手動選擇分類'
+    }
+
+    return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }
