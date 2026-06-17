@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FIXED_CATEGORIES, getAllCategories, getAllCategoryEmoji, getCustomCategories } from '@/lib/constants'
+import { FIXED_CATEGORIES, CATEGORY_EMOJI } from '@/lib/constants'
 
 type ParsedExpense = {
   amount: number
@@ -36,12 +36,23 @@ function AddPageContent() {
   console.log('[AddPage] expenseDate state set to:', expenseDate)
 
   const [allCategories, setAllCategories] = useState<string[]>([...FIXED_CATEGORIES])
-  const [emojiMap, setEmojiMap] = useState(getAllCategoryEmoji())
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>(CATEGORY_EMOJI)
 
   useEffect(() => {
-    setAllCategories(getAllCategories())
-    setEmojiMap(getAllCategoryEmoji())
     inputRef.current?.focus()
+    // Fetch custom categories from Supabase
+    fetch('/api/custom-categories')
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const customNames = data.map((c: { name: string }) => c.name)
+          setAllCategories([...FIXED_CATEGORIES, ...customNames])
+          const extra: Record<string, string> = {}
+          data.forEach((c: { name: string; emoji: string }) => { extra[c.name] = c.emoji })
+          setEmojiMap({ ...CATEGORY_EMOJI, ...extra })
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const parseExpense = useCallback(async (text: string) => {
@@ -50,11 +61,10 @@ function AddPageContent() {
     }
     setIsParsing(true); setParseError('')
     try {
-      const customCategories = getCustomCategories()
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: text, customCategories }),
+        body: JSON.stringify({ input: text }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
-import { getAllCategories, getAllCategoryEmoji } from '@/lib/constants'
+import { FIXED_CATEGORIES, CATEGORY_EMOJI } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
@@ -22,6 +22,8 @@ export default function RecordsPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth())
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [allCategories, setAllCategories] = useState<string[]>([...FIXED_CATEGORIES])
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>(CATEGORY_EMOJI)
 
   const loadExpenses = useCallback(async () => {
     setLoading(true)
@@ -34,7 +36,21 @@ export default function RecordsPage() {
     }
   }, [])
 
-  useEffect(() => { loadExpenses() }, [loadExpenses])
+  useEffect(() => {
+    loadExpenses()
+    // Fetch custom categories from Supabase
+    fetch('/api/custom-categories')
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setAllCategories([...FIXED_CATEGORIES, ...data.map((c: { name: string }) => c.name)])
+          const extra: Record<string, string> = {}
+          data.forEach((c: { name: string; emoji: string }) => { extra[c.name] = c.emoji })
+          setEmojiMap({ ...CATEGORY_EMOJI, ...extra })
+        }
+      })
+      .catch(() => {})
+  }, [loadExpenses])
 
   const monthExpenses = expenses.filter(e => {
     const ds = getExpenseDate(e)
@@ -167,6 +183,7 @@ export default function RecordsPage() {
               <DayExpenseItem
                 key={expense.id}
                 expense={expense}
+                emojiMap={emojiMap}
                 onEdit={() => setEditingExpense(expense)}
                 onDeleted={loadExpenses}
               />
@@ -181,6 +198,8 @@ export default function RecordsPage() {
       {editingExpense && (
         <EditModal
           expense={editingExpense}
+          allCategories={allCategories}
+          emojiMap={emojiMap}
           onClose={() => setEditingExpense(null)}
           onSaved={() => { setEditingExpense(null); loadExpenses() }}
         />
@@ -192,17 +211,18 @@ export default function RecordsPage() {
 // ── Swipe Item ──────────────────────────────────────────────
 function DayExpenseItem({
   expense,
+  emojiMap,
   onEdit,
   onDeleted,
 }: {
   expense: Expense
+  emojiMap: Record<string, string>
   onEdit: () => void
   onDeleted: () => void
 }) {
   const [swipedPx, setSwipedPx] = useState(0)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const emojiMap = getAllCategoryEmoji()
 
   const SNAP = 160  // two buttons: 80px each
   const THRESHOLD = 60
@@ -319,7 +339,19 @@ function DayExpenseItem({
 }
 
 // ── Edit Modal ──────────────────────────────────────────────
-function EditModal({ expense, onClose, onSaved }: { expense: Expense; onClose: () => void; onSaved: () => void }) {
+function EditModal({
+  expense,
+  allCategories,
+  emojiMap,
+  onClose,
+  onSaved,
+}: {
+  expense: Expense
+  allCategories: string[]
+  emojiMap: Record<string, string>
+  onClose: () => void
+  onSaved: () => void
+}) {
   const [amount, setAmount] = useState(String(expense.amount))
   const [category, setCategory] = useState(expense.category)
   const [description, setDescription] = useState(expense.description)
@@ -327,8 +359,6 @@ function EditModal({ expense, onClose, onSaved }: { expense: Expense; onClose: (
     expense.expense_date || toLocalDate(expense.created_at || '') || new Date().toISOString().split('T')[0]
   )
   const [saving, setSaving] = useState(false)
-  const allCategories = getAllCategories()
-  const emojiMap = getAllCategoryEmoji()
 
   const handleSave = async () => {
     if (!amount || Number(amount) <= 0) return

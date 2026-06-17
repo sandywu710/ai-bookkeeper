@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { createApiClient } from '@/lib/supabase-api'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -8,13 +9,26 @@ const FIXED_CATEGORIES = ['餐飲', '交通', '購物', '娛樂', '醫療', '住
 
 export async function POST(req: NextRequest) {
   try {
-    const { input, customCategories = [] } = await req.json()
+    const { input } = await req.json()
 
     if (!input || typeof input !== 'string') {
       return NextResponse.json({ error: '請輸入支出內容' }, { status: 400 })
     }
 
-    const allCategories = [...FIXED_CATEGORIES, ...customCategories.map((c: { name: string }) => c.name)]
+    // Server-side fetch of user's custom categories
+    let customCatNames: string[] = []
+    try {
+      const supabase = createApiClient(req)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase.from('custom_categories').select('name')
+        if (data) customCatNames = data.map((c: { name: string }) => c.name)
+      }
+    } catch {
+      // Non-fatal: fall back to fixed categories only
+    }
+
+    const allCategories = [...FIXED_CATEGORIES, ...customCatNames]
 
     const prompt = `請分析這筆支出：「${input}」
 回傳 JSON 格式，包含：

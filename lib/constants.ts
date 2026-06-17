@@ -26,7 +26,7 @@ export const CATEGORY_EMOJI: Record<string, string> = {
   其他: '💸',
 }
 
-export type CustomCategory = { name: string; emoji: string }
+export type CustomCategory = { id?: string; name: string; emoji: string }
 
 export function getUserId(): string {
   if (typeof window === 'undefined') return ''

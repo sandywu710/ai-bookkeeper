@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   getMonthlyBudget, saveMonthlyBudget,
-  getCustomCategories, saveCustomCategories,
   CATEGORY_EMOJI, FIXED_CATEGORIES,
 } from '@/lib/constants'
 import type { CustomCategory } from '@/lib/constants'
@@ -28,8 +27,46 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setBudgetInput(String(getMonthlyBudget()))
-    setCustomCats(getCustomCategories())
+    loadCategories()
   }, [])
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/custom-categories')
+      const { data } = await res.json()
+      const cloudCats: CustomCategory[] = data || []
+
+      if (cloudCats.length === 0) {
+        // Migration: move localStorage categories to Supabase
+        const raw = typeof window !== 'undefined' ? localStorage.getItem('customCategories') : null
+        const localCats: CustomCategory[] = raw ? JSON.parse(raw) : []
+        if (localCats.length > 0) {
+          const migrated: CustomCategory[] = []
+          for (const cat of localCats) {
+            const r = await fetch('/api/custom-categories', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: cat.name, emoji: cat.emoji }),
+            })
+            if (r.ok) {
+              const { data: d } = await r.json()
+              migrated.push(d)
+            }
+          }
+          setCustomCats(migrated)
+          localStorage.removeItem('customCategories')
+          return
+        }
+      }
+
+      setCustomCats(cloudCats)
+    } catch {
+      try {
+        const raw = localStorage.getItem('customCategories')
+        setCustomCats(raw ? JSON.parse(raw) : [])
+      } catch {}
+    }
+  }
 
   const saveBudget = () => {
     const v = Number(budgetInput)
@@ -39,24 +76,36 @@ export default function SettingsPage() {
     setTimeout(() => setBudgetSaved(false), 2000)
   }
 
-  const addCustomCategory = () => {
+  const addCustomCategory = async () => {
     const name = newCatName.trim()
     if (!name) return
     const allFixed = [...FIXED_CATEGORIES as unknown as string[]]
     const allCustom = customCats.map(c => c.name)
     if (allFixed.includes(name) || allCustom.includes(name)) return
-    const next = [...customCats, { name, emoji: newCatEmoji }]
-    setCustomCats(next)
-    saveCustomCategories(next)
+
+    try {
+      const res = await fetch('/api/custom-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, emoji: newCatEmoji }),
+      })
+      if (!res.ok) throw new Error('新增失敗')
+      const { data } = await res.json()
+      setCustomCats(prev => [...prev, data])
+    } catch {
+      setCustomCats(prev => [...prev, { name, emoji: newCatEmoji }])
+    }
+
     setNewCatName('')
     setNewCatEmoji('🎯')
     setShowAddCat(false)
   }
 
-  const deleteCustomCategory = (name: string) => {
-    const next = customCats.filter(c => c.name !== name)
-    setCustomCats(next)
-    saveCustomCategories(next)
+  const deleteCustomCategory = async (cat: CustomCategory) => {
+    setCustomCats(prev => prev.filter(c => c.name !== cat.name))
+    if (cat.id) {
+      await fetch(`/api/custom-categories?id=${cat.id}`, { method: 'DELETE' })
+    }
   }
 
   const handleLogout = async () => {
@@ -194,7 +243,7 @@ export default function SettingsPage() {
                   <div key={cat.name} className="flex items-center justify-between bg-[#FAF7F2] rounded-[10px] px-3 py-2.5 border border-[#E8E0D5]">
                     <span className="text-sm text-[#2C2019]">{cat.emoji} {cat.name}</span>
                     <button
-                      onClick={() => deleteCustomCategory(cat.name)}
+                      onClick={() => deleteCustomCategory(cat)}
                       className="w-6 h-6 flex items-center justify-center rounded-full text-[#E8736C] hover:bg-[#E8736C]/10 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -234,7 +283,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-5">
           <h2 className="text-sm font-semibold text-[#8B7355] mb-1">資料說明</h2>
           <p className="text-xs text-[#8B7355] leading-relaxed">
-            記帳資料安全儲存於 Supabase 雲端並綁定您的 Google 帳號。預算設定與自訂分類存於本機，換裝置後需重新設定。
+            記帳資料與自訂分類安全儲存於 Supabase 雲端並綁定您的 Google 帳號。預算設定存於本機，換裝置後需重新設定。
           </p>
         </div>
 
