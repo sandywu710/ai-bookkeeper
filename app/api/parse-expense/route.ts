@@ -26,14 +26,20 @@ async function callWithRetry(prompt: string, maxAttempts = 2): Promise<{ jsonStr
   let lastRaw = ''
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      console.log(`[parse-expense] === ATTEMPT ${attempt}/${maxAttempts} ===`)
       const result = await model.generateContent(prompt)
       const raw = result.response.text().trim()
       lastRaw = raw
+      console.log(`[parse-expense] GEMINI RAW RESPONSE (attempt ${attempt}):`)
+      console.log(JSON.stringify(raw)) // JSON.stringify shows escape chars clearly
       const jsonStr = extractJson(raw)
-      if (jsonStr) return { jsonStr, raw }
-      console.log(`[parse-expense] attempt ${attempt}/${maxAttempts} — no JSON found, raw: "${raw.slice(0, 150)}"`)
+      if (jsonStr) {
+        console.log(`[parse-expense] EXTRACTED JSON: ${jsonStr}`)
+        return { jsonStr, raw }
+      }
+      console.log(`[parse-expense] extractJson returned null — no JSON found in response`)
     } catch (err) {
-      console.log(`[parse-expense] attempt ${attempt}/${maxAttempts} — Gemini error:`, err)
+      console.log(`[parse-expense] Gemini API error on attempt ${attempt}:`, err)
       if (attempt === maxAttempts) throw err
     }
   }
@@ -43,6 +49,7 @@ async function callWithRetry(prompt: string, maxAttempts = 2): Promise<{ jsonStr
 export async function POST(req: NextRequest) {
   try {
     const { input } = await req.json()
+    console.log(`[parse-expense] INPUT: "${input}"`)
 
     if (!input || typeof input !== 'string') {
       return NextResponse.json({ error: '請輸入支出內容' }, { status: 400 })
@@ -84,23 +91,29 @@ ${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 - 教育：課程、書籍、補習
 - 其他：無法歸類時使用`
 
+    console.log(`[parse-expense] PROMPT SENT TO GEMINI:`)
+    console.log(prompt)
+
     const { jsonStr, raw } = await callWithRetry(prompt)
 
     let parsed: Record<string, unknown>
     try {
       parsed = JSON.parse(jsonStr)
+      console.log(`[parse-expense] JSON.parse SUCCESS:`, parsed)
     } catch (e) {
-      console.error('[parse-expense] JSON.parse failed, raw:', raw.slice(0, 300))
+      console.error(`[parse-expense] JSON.parse FAILED. jsonStr was: "${jsonStr}"`)
+      console.error(`[parse-expense] JSON.parse error:`, e)
       throw new Error('JSON 格式錯誤')
     }
 
     const amount = Number(parsed.amount)
+    console.log(`[parse-expense] amount parsed: ${amount}, raw value: ${parsed.amount}`)
     if (!amount || amount <= 0) throw new Error('金額無效')
 
-    // If category not in list, fall back to '其他' instead of throwing
     const category = typeof parsed.category === 'string' && allCategories.includes(parsed.category)
       ? parsed.category
       : '其他'
+    console.log(`[parse-expense] category: "${parsed.category}" → final: "${category}"`)
 
     return NextResponse.json({
       amount,
@@ -109,7 +122,7 @@ ${allCategories.map((c, i) => `${i + 1}. ${c}`).join('\n')}
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.8,
     })
   } catch (error) {
-    console.error('[parse-expense] Final error:', error)
+    console.error('[parse-expense] FINAL ERROR:', error)
     return NextResponse.json({ error: 'AI 解析失敗，請手動選擇分類' }, { status: 500 })
   }
 }
