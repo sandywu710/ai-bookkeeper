@@ -181,6 +181,9 @@ export default function ReportsPage() {
             activeCat={activeCat}
             activeCatInfo={activeCatInfo}
             onCatClick={handleCatClick}
+            year={year}
+            month={month}
+            monthExpenses={monthExpenses}
           />
 
           {/* ── AI 洞察 ── */}
