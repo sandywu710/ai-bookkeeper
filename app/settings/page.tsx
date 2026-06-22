@@ -3,6 +3,7 @@
 import BottomNav from '@/components/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AddToHomeScreenModal } from '@/components/AddToHomeScreen'
 import {
   getMonthlyBudget, saveMonthlyBudget,
   CATEGORY_EMOJI, FIXED_CATEGORIES,
@@ -24,6 +25,7 @@ export default function SettingsPage() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatEmoji, setNewCatEmoji] = useState('🎯')
   const [loggingOut, setLoggingOut] = useState(false)
+  const [showAddToHome, setShowAddToHome] = useState(false)
 
   useEffect(() => {
     setBudgetInput(String(getMonthlyBudget()))
@@ -260,6 +262,23 @@ export default function SettingsPage() {
           )}
         </div>
 
+        {/* ── 加入主畫面 ── */}
+        <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] overflow-hidden">
+          <button
+            onClick={() => setShowAddToHome(true)}
+            className="w-full flex items-center gap-4 px-5 py-4 active:bg-[#FAF7F2] transition-colors"
+          >
+            <span className="text-xl flex-shrink-0">📱</span>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-[#2C2019]">如何加入主畫面</p>
+              <p className="text-xs text-[#8B7355] mt-0.5">像 APP 一樣使用本網站</p>
+            </div>
+            <svg className="w-4 h-4 text-[#8B7355] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
         {/* ── 登出 ── */}
         <button
           onClick={handleLogout}
@@ -269,6 +288,8 @@ export default function SettingsPage() {
           {loggingOut ? '登出中...' : '登出'}
         </button>
       </div>
+
+      {showAddToHome && <AddToHomeScreenModal onClose={() => setShowAddToHome(false)} />}
 
       <BottomNav />
     </div>

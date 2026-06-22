@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
+import { AddToHomeScreenTip } from '@/components/AddToHomeScreen'
 import { CATEGORY_EMOJI, getAllCategoryEmoji, getMonthlyBudget } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
@@ -142,6 +143,12 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Add to Home Screen tip — only shown if not PWA and not dismissed */}
+      <div className="mt-6">
+        <AddToHomeScreenTip />
+      </div>
+
       <BottomNav />
     </div>
   )
