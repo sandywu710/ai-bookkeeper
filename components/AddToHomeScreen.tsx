@@ -154,6 +154,24 @@ export function AddToHomeScreenModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div className="space-y-5">
+              {/* iOS Chrome: show Safari recommendation banner at top */}
+              {device === 'ios-chrome' && (
+                <div className="bg-[#FFF8E7] border border-[#F5A623]/30 rounded-[14px] p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <span className="text-base flex-shrink-0">💡</span>
+                    <p className="text-[13px] text-[#8B7355] leading-relaxed">
+                      Chrome 的「加入主畫面」選項位置可能因版本不同而變化，建議改用 iPhone 內建的 Safari 開啟本網站，操作更穩定快速。
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDevice('ios-safari')}
+                    className="w-full py-2 rounded-[8px] bg-[#4CAF7D] text-white text-xs font-bold active:brightness-95"
+                  >
+                    切換查看 Safari 教學
+                  </button>
+                </div>
+              )}
+
               {steps.map((step, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#4CAF7D] text-white text-sm font-bold flex items-center justify-center">
@@ -165,6 +183,14 @@ export function AddToHomeScreenModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               ))}
+
+              {/* iOS Safari: fallback tip after last step */}
+              {device === 'ios-safari' && (
+                <p style={{ fontSize: 13, color: '#8B7355' }} className="leading-relaxed px-1">
+                  若找不到分享按鈕，請點擊瀏覽器下方的「⋯」更多選項按鈕
+                </p>
+              )}
+
               <div className="bg-[#4CAF7D]/10 rounded-[12px] p-3 flex items-start gap-2 mt-2">
                 <span className="text-base flex-shrink-0">✅</span>
                 <p className="text-xs text-[#4CAF7D] font-medium leading-relaxed">
