@@ -1,10 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis,
 } from 'recharts'
-import { useRouter } from 'next/navigation'
 import { CATEGORY_EMOJI } from '@/lib/constants'
 import type { Expense } from '@/lib/supabase'
 
@@ -45,7 +45,7 @@ type Props = {
 }
 
 export default function ReportCharts({ catData, dailyData, activeCat, activeCatInfo, onCatClick, year, month, monthExpenses }: Props) {
-  const router = useRouter()
+  const [activeDayStr, setActiveDayStr] = useState<string | null>(null)
   return (
     <>
       {/* ── 圓餅圖 ── */}
@@ -154,8 +154,10 @@ export default function ReportCharts({ catData, dailyData, activeCat, activeCatI
       {/* ── 長條圖 ── */}
       <div className="px-5 mb-5">
         <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-4">
-          <h2 className="text-sm font-semibold text-[#2C2019] mb-1">每天花費</h2>
-          <p className="text-xs text-[#8B7355] mb-3">點擊長條查看當天明細</p>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#2C2019]">每天花費</h2>
+            <span className="text-xs text-[#8B7355]">點長條查看當天明細</span>
+          </div>
           <div style={{ height: 160 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -193,7 +195,8 @@ export default function ReportCharts({ catData, dailyData, activeCat, activeCatI
                     if (!day || !total) return
                     const mm = String(month + 1).padStart(2, '0')
                     const dd = String(day).padStart(2, '0')
-                    router.push(`/records?date=${year}-${mm}-${dd}`)
+                    const dateStr = `${year}-${mm}-${dd}`
+                    setActiveDayStr(prev => prev === dateStr ? null : dateStr)
                   }}
                 />
               </BarChart>
@@ -201,6 +204,53 @@ export default function ReportCharts({ catData, dailyData, activeCat, activeCatI
           </div>
         </div>
       </div>
+
+      {/* ── 當天明細（點長條後展開）── */}
+      {activeDayStr && (() => {
+        const [, , dd] = activeDayStr.split('-')
+        const dayItems = monthExpenses
+          .filter(e => (e.expense_date || (e.created_at ? e.created_at.slice(0, 10) : '')) === activeDayStr)
+          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+        const dayTotal = dayItems.reduce((s, e) => s + Number(e.amount), 0)
+        return (
+          <div className="px-5 mb-5 slide-up">
+            <div className="bg-white rounded-[16px] border border-[#E8E0D5] shadow-[0_2px_12px_rgba(44,32,25,0.06)] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-[#2C2019]">
+                  {month + 1}月{parseInt(dd, 10)}日
+                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-[#2C2019]">NT${dayTotal.toLocaleString('zh-TW')}</span>
+                  <button
+                    onClick={() => setActiveDayStr(null)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-[#FAF7F2] border border-[#E8E0D5] text-[#8B7355] text-sm leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {dayItems.length === 0 ? (
+                <p className="text-sm text-[#8B7355] text-center py-2">這天沒有記帳資料</p>
+              ) : (
+                <div className="space-y-2">
+                  {dayItems.map((e, i) => (
+                    <div key={e.id ?? i} className="flex items-center gap-3 px-3 py-2.5 bg-[#FAF7F2] rounded-[10px]">
+                      <span className="text-xl flex-shrink-0">{CATEGORY_EMOJI[e.category] || '💸'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#2C2019] truncate">{e.description}</p>
+                        <p className="text-xs text-[#8B7355]">{e.category}</p>
+                      </div>
+                      <span className="text-sm font-bold text-[#2C2019] flex-shrink-0">
+                        NT${Number(e.amount).toLocaleString('zh-TW')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }
