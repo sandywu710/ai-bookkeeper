@@ -15,7 +15,8 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-[#E8E0D5] z-50">
-      <div className="flex items-center justify-around px-2 py-2 pb-safe">
+      {/* Nav buttons — fixed height, no safe-area mixing */}
+      <div className="flex items-center justify-around px-2 pt-2 pb-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href
           return (
@@ -40,6 +41,19 @@ export default function BottomNav() {
           )
         })}
       </div>
+      {/* Watermark — sits below buttons, fills iPhone home-indicator safe area */}
+      <p
+        className="text-center pointer-events-none select-none"
+        style={{
+          fontSize: 10,
+          color: '#B5A48A',
+          lineHeight: 1,
+          paddingBottom: 'max(env(safe-area-inset-bottom), 4px)',
+          paddingTop: 1,
+        }}
+      >
+        Made by Sandy
+      </p>
     </nav>
   )
 }

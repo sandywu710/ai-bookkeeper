@@ -119,7 +119,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
+    <div className="flex flex-col min-h-screen pb-20">
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-xl font-bold text-[#2C2019]">設定</h1>
       </div>

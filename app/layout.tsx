@@ -28,9 +28,6 @@ export default function RootLayout({
           <div className="min-h-screen bg-[#FAF7F2]">
             <div className="mx-auto max-w-[430px] min-h-screen relative">
               {children}
-              <p className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] text-center pb-1 pointer-events-none select-none z-[60]" style={{ fontSize: 11, color: '#B5A48A' }}>
-                Made by Sandy
-              </p>
             </div>
           </div>
         </AuthProvider>

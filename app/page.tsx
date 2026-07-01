@@ -52,7 +52,7 @@ export default function HomePage() {
   const isOver = spent > budget
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
+    <div className="flex flex-col min-h-screen pb-20">
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
         <p className="text-sm text-[#8B7355]">歡迎回來</p>

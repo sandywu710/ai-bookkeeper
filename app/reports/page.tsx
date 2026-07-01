@@ -112,7 +112,7 @@ export default function ReportsPage() {
   }, [monthExpenses, insightsFetched, insightsLoading])
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
+    <div className="flex flex-col min-h-screen pb-20">
       {/* ── Header + Month Nav ── */}
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-xl font-bold text-[#2C2019] mb-4">月度報表</h1>
