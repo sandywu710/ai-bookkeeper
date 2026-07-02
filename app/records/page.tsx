@@ -111,7 +111,7 @@ function RecordsPageContent() {
   })()
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="flex flex-col min-h-screen pb-24">
       {/* 月份統計小卡 */}
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-xl font-bold text-[#2C2019] mb-4">記帳記錄</h1>

@@ -6,6 +6,17 @@ export const metadata: Metadata = {
   title: 'AI記帳助手',
   description: '用自然語言快速記帳',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AI記帳助手',
+  },
+  icons: {
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport: Viewport = {
@@ -14,6 +25,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#FAF7F2',
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
